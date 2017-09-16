@@ -1,13 +1,13 @@
 pragma solidity ^0.4.6;
 
 import "./Owned.sol";
+import "./Killable.sol";
 
-contract ShopFront is Owned{
+contract ShopFront is Owned, Killable {
     
     struct Product {
         uint price;
         uint quantity;
-        bool exists;
     }
     
     mapping (uint => Product) public products;
@@ -17,11 +17,11 @@ contract ShopFront is Owned{
     event LogAddStock(address sender, uint id, uint qty);
     event LogRemoveStock(address sender, uint id, uint qty);
     event LogChangePrice(address sender, uint id, uint price);
-    event LogSoldProduct(address buyer, uint id, uint qty);
-    event LogAddBalance(uint amount);
-    event LogWithdrawal(uint amount);
-    event LogAddAdmin(address admin);
-    event LogRemoveAdmin(address admin);
+    event LogSoldProduct(address sender, uint id, uint qty);
+    event LogAddBalance(address sender, uint amount);
+    event LogWithdrawal(address sender, uint amount);
+    event LogAddAdmin(address sender, address admin);
+    event LogRemoveAdmin(address sender, address admin);
     
     modifier onlyAdmin() {
         require(admins[msg.sender] == true);
@@ -39,7 +39,7 @@ contract ShopFront is Owned{
     {
         require(admins[admin] == false);
         admins[admin] = true;
-        LogAddAdmin(admin);
+        LogAddAdmin(msg.sender, admin);
         return true;
     }
     
@@ -51,7 +51,7 @@ contract ShopFront is Owned{
         require(admins[admin] == true);
         admins[admin] = false;
         delete admins[admin];
-        LogRemoveAdmin(admin);
+        LogRemoveAdmin(msg.sender, admin);
         return true;
     }
     
@@ -59,9 +59,8 @@ contract ShopFront is Owned{
         public
         payable
         onlyOwner
-        onlyAdmin // admins can handle returns  
     {
-        LogAddBalance(msg.value);
+        LogAddBalance(msg.sender, msg.value);
     }
     
     function withdraw(uint amount)
@@ -70,7 +69,7 @@ contract ShopFront is Owned{
     {
         require(this.balance >= amount);
         msg.sender.transfer(amount);
-        LogWithdrawal(amount);
+        LogWithdrawal(msg.sender, amount);
     }
     
     /* Admin Functions */
@@ -80,13 +79,13 @@ contract ShopFront is Owned{
         returns (bool success)
 
     {
+        require(price > 0);
         require(quantity > 0);
-        require(products[productId].exists == false);
+        require(products[productId].price == 0); // product does not exist
 
         products[productId] = Product({
                             price: price,
-                            quantity: quantity,
-                            exists: true
+                            quantity: quantity
                         });
 
         LogNewProduct(msg.sender, productId, price, quantity);
@@ -99,7 +98,7 @@ contract ShopFront is Owned{
         returns (bool success)
     {
         require(_quantity > 0);
-        require(products[productId].exists);
+        require(products[productId].price > 0); // product exists 
         products[productId].quantity += _quantity;
         LogAddStock(msg.sender, productId, _quantity);
         return true;
@@ -112,7 +111,7 @@ contract ShopFront is Owned{
 
     {
         require(_quantity > 0);
-        require(products[productId].exists);
+        require(products[productId].price > 0); // product exists
         require(_quantity <= products[productId].quantity);
         
         products[productId].quantity -= _quantity;
@@ -124,9 +123,8 @@ contract ShopFront is Owned{
         public
         onlyAdmin
         returns (bool success)
-
     {
-        require(products[productId].exists);
+        require(products[productId].price > 0); // product exists
         
         products[productId].price = _price;
         LogChangePrice(msg.sender, productId, _price);
@@ -139,17 +137,16 @@ contract ShopFront is Owned{
         payable
         returns (bool success)
     {
-        require(products[productId].exists);
+        require(products[productId].price > 0); // product exists
         require(products[productId].quantity > qty);
         uint total = products[productId].price * qty;
         require(msg.value >= total);
         
+        products[productId].quantity -= qty;
+        LogSoldProduct(msg.sender, productId, qty);
         if (msg.value > total) {
             msg.sender.transfer(msg.value - total);
         }
-
-        products[productId].quantity -= qty;
-        LogSoldProduct(msg.sender, productId, qty);
         return true;
     }
     

@@ -4,7 +4,7 @@ contract Owned {
     
     address public owner;
 
-    event LogKilled();
+    event LogTransferOwnership(address sender, address newOwner);
 
     function Owned() {
         owner = msg.sender;
@@ -15,18 +15,14 @@ contract Owned {
         _;
     }
     
-    function kill() 
-    onlyOwner
-    {
-        LogKilled();
-        selfdestruct(owner);
-    }
+ 
     
     function transferOwnership (address newOwner)
     onlyOwner
     {
         require(newOwner != address(0));
         owner = newOwner;
+        LogTransferOwnership(msg.sender, newOwner);
     }
     
 }

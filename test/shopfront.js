@@ -49,11 +49,10 @@ contract('ShopFront', function(accounts) {
           return shopfront.products.call(product.id);
         })
         .then(_product => {
-          var [_price, _quantity, _exists] = _product;
+          var [_price, _quantity] = _product;
            //console.log(_product);
           assert.strictEqual(_price.toNumber(), product.price, "Price is wrong");
           assert.strictEqual(_quantity.toNumber(), product.quantity, "Quantity is wrong");
-          assert.strictEqual(_exists, true, "Product is not marked as existing");
         })
     });
 
@@ -77,6 +76,7 @@ contract('ShopFront', function(accounts) {
     beforeEach(function() {
       shopfront.addAdmin(admin, {from: owner})
       .then(txObject => {
+        console.log(txObject.log)
         return shopfront.addProduct(product.id, product.price, product.quantity, {from: admin})
        })
       });
